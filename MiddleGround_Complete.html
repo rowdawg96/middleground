@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiddleGround - Optimal Meeting Point Finder</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    /* Modern Reset and Base Styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    :root {
+      /* Light Theme (Default) */
+      --primary: #3a86ff;
+      --primary-dark: #2563eb;
+      --primary-light: #dbeafe;
+      --secondary: #4b5563;
+      --light: #f9fafb;
+      --dark: #111827;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      
+      /* Theme Colors */
+      --bg-color: var(--light);
+      --text-color: var(--dark);
+      --card-bg: white;
+      --card-border: #e5e7eb;
+      --input-bg: white;
+      --input-border: #e5e7eb;
+      --place-item-bg: white;
+      
+      /* Shadows */
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      
+      /* Border Radius */
+      --radius-sm: 0.125rem;
+      --radius: 0.25rem;
+      --radius-md: 0.375rem;
+      --radius-lg: 0.5rem;
+      --transition: all 0.2s ease-in-out;
+    }
+    
+    [data-theme="dark"] {
+      --primary: #60a5fa;
+      --primary-dark: #3b82f6;
+      --primary-light: #1e40af;
+      --bg-color: #1f2937;
+      --text-color: #f3f4f6;
+      --card-bg: #374151;
+      --card-border: #4b5563;
+      --input-bg: #374151;
+      --input-border: #4b5563;
+      --place-item-bg: #374151;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.25);
+      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.26);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.26);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.25);
+    }
+    
+    html, body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      height: 100%;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      line-height: 1.5;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    
+    /* Layout */
+    .app-container {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    /* Sidebar */
+    .sidebar {
+      width: 350px;
+      height: 100%;
+      background-color: var(--card-bg);
+      box-shadow: var(--shadow-md);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      transition: var(--transition);
+      position: relative;
+    }
+    
+    .sidebar-collapsed {
+      width: 70px;
+    }
+    
+    .sidebar-header {
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    
+    .sidebar-toggle {
+      position: absolute;
+      top: 50%;
+      right: -12px;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 24px;
+      background-color: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 20;
+      box-shadow: var(--shadow-md);
+    }
+    
+    /* Map Container */
+    .map-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+    }
+    
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+    
+    /* Results Panel */
+    .results-panel {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 300px;
+      max-height: calc(100vh - 2rem);
+      background-color: var(--card-bg);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      overflow-y: auto;
+      z-index: 5;
+      transition: var(--transition);
+      transform: translateX(320px);
+    }
+    
+    .results-panel.active {
+      transform: translateX(0);
+    }
+    
+    .results-header {
+      padding: 1rem;
+      background-color: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top-left-radius: var(--radius-md);
+      border-top-right-radius: var(--radius-md);
+    }
+    
+    .results-content {
+      padding: 1rem;
+      overflow-y: auto;
+      max-height: calc(100vh - 4rem);
+    }
+    
+    /* Form Elements */
+    .form-section {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: var(--text-color);
+      display: flex;
+      align-items: center;
+    }
+    
+    .form-section-title i {
+      margin-right: 0.5rem;
+      color: var(--primary);
+    }
+    
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    
+    .form-group-inline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: var(--secondary);
+    }
+    
+    input[type="text"], select {
+      width: 100%;
+      padding: 0.625rem;
+      border: 1px solid var(--input-border);
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      transition: var(--transition);
+      background-color: var(--input-bg);
+      color: var(--text-color);
+    }
+    
+    input[type="text"]:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    /* Address inputs */
+    .addressDiv {
+      position: relative;
+      margin-bottom: 0.75rem;
+    }
+    
+    .addressInputWrapper {
+      display: flex;
+      position: relative;
+    }
+    
+    .useLocationBtn {
+      position: absolute;
+      right: 2rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background-color: transparent;
+      border: none;
+      color: var(--primary);
+      cursor: pointer;
+      font-size: 0.875rem;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: var(--transition);
+      z-index: 10;
+    }
+    
+    .useLocationBtn:hover {
+      background-color: var(--primary-light);
+    }
+    
+    .removeAddress {
+      position: absolute;
+      right: 0.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background-color: transparent;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 0.875rem;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: var(--transition);
+    }
+    
+    .removeAddress:hover {
+      background-color: #fee2e2;
+    }
+    
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.625rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: var(--radius);
+      transition: var(--transition);
+      cursor: pointer;
+      border: none;
+    }
+    
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background-color: var(--primary-dark);
+    }
+    
+    .btn-secondary {
+      background-color: #e5e7eb;
+      color: var(--secondary);
+    }
+    
+    .btn-secondary:hover {
+      background-color: #d1d5db;
+    }
+    
+    .btn-sm {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.75rem;
+    }
+    
+    .btn i {
+      margin-right: 0.5rem;
+    }
+    
+    .btn-block {
+      width: 100%;
+    }
+    
+    /* Place Type Buttons */
+    .place-type-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .place-type-btn {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--text-color);
+    }
+    
+    .place-type-btn.selected {
+      border-color: var(--primary);
+      background-color: var(--primary-light);
+    }
+    
+    .place-type-btn i {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: var(--secondary);
+    }
+    
+    .place-type-btn.selected i {
+      color: var(--primary);
+    }
+    
+    .place-type-btn span {
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    
+    /* Slider */
+    .range-slider {
+      width: 100%;
+    }
+    
+    .range-slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .range-slider-value {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--primary);
+      background-color: var(--primary-light);
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--radius);
+    }
+    
+    input[type="range"] {
+      width: 100%;
+      height: 5px;
+      -webkit-appearance: none;
+      background: #e5e7eb;
+      border-radius: 5px;
+      outline: none;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--primary);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    
+    /* Results */
+    .place-item {
+      background-color: var(--place-item-bg);
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--card-border);
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--text-color);
+    }
+    
+    .place-item:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .place-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.5rem;
+    }
+    
+    .place-item-name {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    
+    .place-item-address {
+      font-size: 0.75rem;
+      color: var(--secondary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .place-item-rating {
+      display: flex;
+      align-items: center;
+      font-size: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .place-item-rating i {
+      color: #f59e0b;
+      margin-right: 0.25rem;
+    }
+    
+    .place-item-price {
+      font-size: 0.75rem;
+      color: var(--secondary);
+    }
+    
+    .place-item-travel {
+      border-top: 1px solid var(--card-border);
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+    }
+    
+    .place-item-travel-total {
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    
+    .place-item-travel-individual {
+      font-size: 0.75rem;
+      color: var(--secondary);
+    }
+    
+    .place-item-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 0.75rem;
+    }
+    
+    /* Dark Mode Toggle */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      margin-right: 1rem;
+      cursor: pointer;
+    }
+    
+    .theme-toggle-track {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 20px;
+      background-color: rgba(255, 255, 255, 0.4);
+      border-radius: 10px;
+      transition: all 0.3s;
+    }
+    
+    .theme-toggle-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background-color: white;
+      border-radius: 50%;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #3a86ff;
+    }
+    
+    [data-theme="dark"] .theme-toggle-track {
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+    
+    [data-theme="dark"] .theme-toggle-thumb {
+      left: 22px;
+      background-color: #1f2937;
+      color: #60a5fa;
+    }
+    
+    /* Directions Panel */
+    .directions-panel {
+      position: absolute;
+      bottom: 1rem;
+      left: 1rem;
+      width: 350px;
+      max-height: calc(60vh);
+      background-color: var(--card-bg);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      overflow-y: auto;
+      z-index: 5;
+      transition: var(--transition);
+      transform: translateY(calc(100% + 1rem));
+    }
+    
+    .directions-panel.active {
+      transform: translateY(0);
+    }
+    
+    .directions-header {
+      padding: 1rem;
+      background-color: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top-left-radius: var(--radius-md);
+      border-top-right-radius: var(--radius-md);
+    }
+    
+    .directions-content {
+      padding: 1rem;
+      overflow-y: auto;
+      max-height: calc(60vh - 4rem);
+    }
+    
+    .direction-step {
+      display: flex;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+    
+    .direction-step:last-child {
+      border-bottom: none;
+    }
+    
+    .direction-icon {
+      margin-right: 0.75rem;
+      width: 24px;
+      text-align: center;
+    }
+    
+    .direction-details {
+      flex: 1;
+    }
+    
+    .direction-main {
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+    
+    .direction-time {
+      color: var(--primary);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    
+    .direction-distance {
+      color: var(--secondary);
+      font-size: 0.75rem;
+    }
+    
+    .transit-line {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--radius);
+      color: white;
+      font-weight: 600;
+      font-size: 0.75rem;
+      margin-right: 0.5rem;
+    }
+    
+    .transit-details {
+      margin-top: 0.5rem;
+      font-size: 0.875rem;
+    }
+    
+    /* Collapsed Sidebar Styles */
+    .sidebar-collapsed .sidebar-header h1 {
+      display: none;
+    }
+    
+    .sidebar-collapsed .sidebar-toggle i {
+      transform: rotate(180deg);
+    }
+    
+    .sidebar-collapsed .sidebar-content {
+      display: none;
+    }
+    
+    .sidebar-collapsed .sidebar-header {
+      justify-content: center;
+    }
+    
+    /* Loading Indicator */
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(var(--bg-color-rgb, 249, 250, 251), 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: var(--transition);
+    }
+    
+    [data-theme="dark"] .loading-overlay {
+      background-color: rgba(31, 41, 55, 0.8);
+    }
+    
+    .loading-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--primary-light);
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .app-container {
+        flex-direction: column;
+      }
+      
+      .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 50vh;
+      }
+      
+      .sidebar-collapsed {
+        height: 60px;
+        width: 100%;
+      }
+      
+      .sidebar-toggle {
+        top: unset;
+        right: 1rem;
+        bottom: -12px;
+        transform: translateY(0) rotate(90deg);
+      }
+      
+      .sidebar-collapsed .sidebar-toggle {
+        transform: translateY(0) rotate(270deg);
+      }
+      
+      .results-panel {
+        width: calc(100% - 2rem);
+        left: 1rem;
+        right: 1rem;
+        transform: translateY(calc(100% + 1rem));
+      }
+      
+      .results-panel.active {
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h1>MiddleGround</h1>
+        <div style="display: flex; align-items: center;">
+          <div class="theme-toggle" id="themeToggle">
+            <div class="theme-toggle-track">
+              <div class="theme-toggle-thumb">
+                <i class="fas fa-sun"></i>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-secondary" id="findBtn">
+            <i class="fas fa-search"></i> Find
+          </button>
+        </div>
+      </div>
+      <div class="sidebar-content">
+        <!-- Address Inputs -->
+        <div class="form-section">
+          <div class="form-section-title">
+            <i class="fas fa-map-marker-alt"></i> Locations
+          </div>
+          <div id="addressContainer">
+            <div class="addressDiv">
+              <label for="address1">Address 1:</label>
+              <div class="addressInputWrapper">
+                <input type="text" id="address1" name="address1" placeholder="Enter your address">
+                <button type="button" class="useLocationBtn" id="useLocationBtn1" title="Use my current location">
+                  <i class="fas fa-location-arrow"></i>
+                </button>
+              </div>
+            </div>
+            <div class="addressDiv">
+              <label for="address2">Address 2:</label>
+              <div class="addressInputWrapper">
+                <input type="text" id="address2" name="address2" placeholder="Enter friend's address">
+                <button type="button" class="useLocationBtn" id="useLocationBtn2" title="Use my current location">
+                  <i class="fas fa-location-arrow"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="addAddressBtn">
+            <i class="fas fa-plus"></i> Add Address
+          </button>
+        </div>
+        
+        <!-- Travel Mode -->
+        <div class="form-section">
+          <div class="form-section-title">
+            <i class="fas fa-route"></i> Travel Options
+          </div>
+          <div class="form-group">
+            <label for="mode">Travel Mode:</label>
+            <select id="mode" name="mode">
+              <option value="TRANSIT">Transit</option>
+              <option value="DRIVING">Driving</option>
+              <option value="WALKING">Walking</option>
+              <option value="BICYCLING">Bicycling</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Place Type -->
+        <div class="form-section">
+          <div class="form-section-title">
+            <i class="fas fa-store"></i> Meeting Place
+          </div>
+          <div class="place-type-container">
+            <div class="place-type-btn" data-type="cafe">
+              <i class="fas fa-coffee"></i>
+              <span>Cafe</span>
+            </div>
+            <div class="place-type-btn selected" data-type="restaurant">
+              <i class="fas fa-utensils"></i>
+              <span>Restaurant</span>
+            </div>
+            <div class="place-type-btn" data-type="park">
+              <i class="fas fa-tree"></i>
+              <span>Park</span>
+            </div>
+            <div class="place-type-btn" data-type="bar">
+              <i class="fas fa-glass-martini-alt"></i>
+              <span>Bar</span>
+            </div>
+          </div>
+          
+          <!-- Search Radius -->
+          <div class="form-group">
+            <div class="range-slider">
+              <div class="range-slider-header">
+                <label for="radius">Search Radius:</label>
+                <span class="range-slider-value" id="radiusValue">2000m</span>
+              </div>
+              <input type="range" id="radius" name="radius" min="500" max="5000" value="2000" step="500">
+            </div>
+          </div>
+          
+          <!-- Sort Option -->
+          <div class="form-group">
+            <label for="sortOption">Sort By:</label>
+            <select id="sortOption" name="sortOption">
+              <option value="totalTime">Total Travel Time</option>
+              <option value="rating">Rating</option>
+              <option value="price">Price Level</option>
+              <option value="distance">Distance from Center</option>
+            </select>
+          </div>
+        </div>
+        
+        <button class="btn btn-primary btn-block" id="findMeetingPointBtn">
+          <i class="fas fa-search-location"></i> Find Meeting Point
+        </button>
+      </div>
+      <div class="sidebar-toggle">
+        <i class="fas fa-chevron-left"></i>
+      </div>
+    </div>
+    
+    <!-- Map Container -->
+    <div class="map-container">
+      <div id="map"></div>
+      
+      <!-- Results Panel -->
+      <div class="results-panel" id="resultsPanel">
+        <div class="results-header">
+          <h3>Recommended Places</h3>
+          <button class="btn btn-sm btn-secondary" id="closeResultsBtn">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="results-content">
+          <div id="placesList"></div>
+        </div>
+      </div>
+      
+      <!-- Loading Overlay -->
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+      </div>
+      
+      <!-- Directions Panel -->
+      <div class="directions-panel" id="directionsPanel">
+        <div class="directions-header">
+          <h3>Transit Directions</h3>
+          <button class="btn btn-sm btn-secondary" id="closeDirectionsBtn">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="directions-content" id="directionsContent">
+          <!-- Transit directions will be populated here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Include the Google Maps JavaScript API script -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDEjNFl1fS3EoYF4IK1zTetQDdIX8FmPUs&libraries=places,geometry&v=weekly&callback=initMap" async defer></script>
+
+  <script>
+    // Variables and initializations
+    var map;
+    var markers = [];
+    var autocompletes = [];
+    var directionsService;
+    var directionsRenderers = [];
+    var placesData = [];
+    var userLocations = [];
+    var userAddresses = [];
+    var selectedPlaceType = 'restaurant';
+    var searchRadius = 2000;
+    var midpointMarker;
+    var sidebarCollapsed = false;
+    var darkMode = false; // Default to light mode
+
+    function initMap() {
+      var mapElement = document.getElementById('map')
+      if (!mapElement) {
+        console.error('Map Element not found!');
+        return;
+      }
+
+      map = new google.maps.Map(mapElement, {
+        zoom: 12,
+        center: { lat: 40.7128, lng: -74.0060 }, // New York City center
+        disableDefaultUI: false, // Changed from true to show all controls for debugging
+        zoomControl: true,
+        fullscreenControl: true
+      });
+
+        // Explicitly create the DirectionsService
+        directionsService = new google.maps.DirectionsService();
+        
+        // Initialize autocomplete
+        initAutocomplete();
+        setupEventListeners();
+        
+        console.log("Map initialized successfully");
+      }
+    
+    function initAutocomplete() {
+      var addressInputs = document.querySelectorAll('#addressContainer input');
+      console.log('Found address inputs:', addressInputs.length); // Add for debugging
+  
+      addressInputs.forEach(function(input) {
+        var autocomplete = new google.maps.places.Autocomplete(input, {
+          types: ['address'] // Restrict to addresses only
+      });
+    
+      // Prevent form submission when selecting from dropdown
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+        }
+        });
+    
+        autocompletes.push(autocomplete);
+      });
+    }
+
+    function setupEventListeners() {
+      // Sidebar toggle
+      document.querySelector('.sidebar-toggle').addEventListener('click', toggleSidebar);
+      
+      // Add address button
+      document.getElementById('addAddressBtn').addEventListener('click', addAddressField);
+      
+      // Find meeting point button
+      document.getElementById('findMeetingPointBtn').addEventListener('click', findMeetingPoint);
+      document.getElementById('findBtn').addEventListener('click', findMeetingPoint);
+      
+      // Close results button
+      document.getElementById('closeResultsBtn').addEventListener('click', function() {
+        document.getElementById('resultsPanel').classList.remove('active');
+      });
+      
+      // Close directions button
+      document.getElementById('closeDirectionsBtn').addEventListener('click', function() {
+        document.getElementById('directionsPanel').classList.remove('active');
+      });
+      
+      // Theme toggle
+      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+      
+      // Use my location buttons
+      document.getElementById('useLocationBtn1').addEventListener('click', function() {
+        getCurrentLocation('address1');
+      });
+      
+      document.getElementById('useLocationBtn2').addEventListener('click', function() {
+        getCurrentLocation('address2');
+      });
+      
+      // Place type buttons
+      var placeTypeButtons = document.querySelectorAll('.place-type-btn');
+      placeTypeButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+          // Remove selected class from all buttons
+          placeTypeButtons.forEach(function(btn) {
+            btn.classList.remove('selected');
+          });
+          
+          // Add selected class to clicked button
+          this.classList.add('selected');
+          
+          // Update selected place type
+          selectedPlaceType = this.getAttribute('data-type');
+        });
+      });
+      
+      // Radius slider
+      document.getElementById('radius').addEventListener('input', function() {
+        var value = this.value;
+        document.getElementById('radiusValue').textContent = value + 'm';
+        searchRadius = parseInt(value);
+      });
+      
+      // Sort option
+      document.getElementById('sortOption').addEventListener('change', sortAndDisplayPlaces);
+      
+      // Initialize theme from localStorage
+      initTheme();
+    }
+    
+    function toggleSidebar() {
+      var sidebar = document.getElementById('sidebar');
+      sidebarCollapsed = !sidebarCollapsed;
+      
+      if (sidebarCollapsed) {
+        sidebar.classList.add('sidebar-collapsed');
+      } else {
+        sidebar.classList.remove('sidebar-collapsed');
+      }
+    }
+
+    function addAddressField() {
+      var addressContainer = document.getElementById('addressContainer');
+      var addressDivs = addressContainer.getElementsByClassName('addressDiv');
+      var newAddressNumber = addressDivs.length + 1;
+
+      var newAddressDiv = document.createElement('div');
+      newAddressDiv.className = 'addressDiv';
+
+      var newLabel = document.createElement('label');
+      newLabel.setAttribute('for', 'address' + newAddressNumber);
+      newLabel.textContent = 'Address ' + newAddressNumber + ':';
+
+      var inputWrapper = document.createElement('div');
+      inputWrapper.className = 'addressInputWrapper';
+
+      var newInput = document.createElement('input');
+      newInput.setAttribute('type', 'text');
+      newInput.setAttribute('id', 'address' + newAddressNumber);
+      newInput.setAttribute('name', 'address' + newAddressNumber);
+      newInput.setAttribute('placeholder', 'Enter address ' + newAddressNumber);
+
+      var locationButton = document.createElement('button');
+      locationButton.innerHTML = '<i class="fas fa-location-arrow"></i>';
+      locationButton.className = 'useLocationBtn';
+      locationButton.setAttribute('id', 'useLocationBtn' + newAddressNumber);
+      locationButton.setAttribute('title', 'Use my current location');
+      locationButton.onclick = function() {
+        getCurrentLocation('address' + newAddressNumber);
+      };
+
+      var removeButton = document.createElement('button');
+      removeButton.innerHTML = '<i class="fas fa-times"></i>';
+      removeButton.className = 'removeAddress';
+      removeButton.onclick = function() {
+        removeAddressField(this);
+      };
+
+      inputWrapper.appendChild(newInput);
+      inputWrapper.appendChild(locationButton);
+      inputWrapper.appendChild(removeButton);
+
+      newAddressDiv.appendChild(newLabel);
+      newAddressDiv.appendChild(inputWrapper);
+      addressContainer.appendChild(newAddressDiv);
+
+      var newAutocomplete = new google.maps.places.Autocomplete(newInput);
+      autocompletes.push(newAutocomplete);
+    }
+
+    function removeAddressField(button) {
+      var addressContainer = document.getElementById('addressContainer');
+      var addressDiv = button.parentNode.parentNode;
+      var index = Array.prototype.indexOf.call(addressContainer.children, addressDiv);
+
+      // Remove the autocomplete instance
+      autocompletes.splice(index, 1);
+
+      // Remove the address field
+      addressContainer.removeChild(addressDiv);
+
+      // Reset labels and IDs
+      resetAddressLabels();
+    }
+
+    function resetAddressLabels() {
+      var addressContainer = document.getElementById('addressContainer');
+      var addressDivs = addressContainer.getElementsByClassName('addressDiv');
+      for (var i = 0; i < addressDivs.length; i++) {
+        var label = addressDivs[i].querySelector('label');
+        var input = addressDivs[i].querySelector('input');
+        var removeButton = addressDivs[i].querySelector('.removeAddress');
+        var addressNumber = i + 1;
+
+        label.textContent = 'Address ' + addressNumber + ':';
+        input.setAttribute('id', 'address' + addressNumber);
+        input.setAttribute('name', 'address' + addressNumber);
+        input.setAttribute('placeholder', 'Enter address ' + addressNumber);
+
+        // Hide the remove button for Address 1 and 2
+        if (addressNumber <= 2 && removeButton) {
+          removeButton.style.display = 'none';
+        } else if (removeButton) {
+          removeButton.style.display = 'flex';
+        }
+      }
+    }
+
+    function findMeetingPoint() {
+      // Show loading overlay
+      document.getElementById('loadingOverlay').classList.add('active');
+      
+      clearMap();
+      placesData = [];
+      userLocations = [];
+      userAddresses = [];
+
+      var addresses = [];
+      var addressInputs = document.querySelectorAll('#addressContainer input');
+      addressInputs.forEach(function(input) {
+        if (input.value) {
+          addresses.push(input.value);
+        }
+      });
+
+      if (addresses.length < 2) {
+        alert('Please enter at least two addresses.');
+        document.getElementById('loadingOverlay').classList.remove('active');
+        return;
+      }
+
+      var travelMode = document.getElementById('mode').value;
+
+      var geocodePromises = addresses.map(function(address) {
+        return geocodeAddress(address);
+      });
+
+      Promise.allSettled(geocodePromises).then(function(results) {
+        var failedAddresses = [];
+
+        results.forEach(function(result, index) {
+          if (result.status === 'fulfilled') {
+            userLocations.push(result.value.location);
+            userAddresses.push(result.value.address);
+          } else {
+            failedAddresses.push(addresses[index]);
+          }
+        });
+
+        if (failedAddresses.length > 0) {
+          alert('The following addresses could not be geocoded:\n' + failedAddresses.join('\n'));
+        }
+
+        if (userLocations.length < 2) {
+          alert('At least two valid addresses are required.');
+          document.getElementById('loadingOverlay').classList.remove('active');
+          return;
+        }
+
+        // Add markers for user locations
+        userLocations.forEach(function(location, index) {
+          var marker = new google.maps.Marker({
+            position: location,
+            map: map,
+            title: 'Address ' + (index + 1),
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 8,
+              fillColor: "#4CAF50",
+              fillOpacity: 1,
+              strokeWeight: 2,
+              strokeColor: "#FFFFFF"
+            },
+            animation: google.maps.Animation.DROP
+          });
+          markers.push(marker);
+        });
+
+        // Calculate the optimal meeting point
+        calculateOptimalMeetingPoint(userLocations, travelMode).then(function(optimalPoint) {
+          // Adjust the point to an actual address/place
+          adjustPointToLand(optimalPoint).then(function(finalPoint) {
+            // Add a marker for the meeting point
+            midpointMarker = new google.maps.Marker({
+              position: finalPoint,
+              map: map,
+              title: 'Optimal Meeting Point',
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 12,
+                fillColor: "#3a86ff",
+                fillOpacity: 1,
+                strokeWeight: 2,
+                strokeColor: "#FFFFFF"
+              },
+              animation: google.maps.Animation.DROP
+            });
+            markers.push(midpointMarker);
+
+            // Center the map around the midpoint and zoom in
+            map.setCenter(finalPoint);
+            map.setZoom(14);
+
+            // Calculate routes from user locations to the midpoint
+            var travelMode = document.getElementById('mode').value;
+
+            // Calculate route for your location (Address 1) to the midpoint
+            calculateRoute(userLocations[0], finalPoint, travelMode, true);
+
+            // Calculate routes for other locations to the midpoint
+            for (var i = 1; i < userLocations.length; i++) {
+              calculateRoute(userLocations[i], finalPoint, travelMode, false);
+            }
+
+            // Find and display nearby places
+            findNearbyPlaces(finalPoint, selectedPlaceType, userLocations, travelMode);
+          }).catch(function(error) {
+            console.error('Error adjusting point to land:', error);
+            document.getElementById('loadingOverlay').classList.remove('active');
+          });
+        }).catch(function(error) {
+          console.error('Error calculating optimal meeting point:', error);
+          document.getElementById('loadingOverlay').classList.remove('active');
+        });
+      }).catch(function(error) {
+        console.error('Error geocoding addresses:', error);
+        document.getElementById('loadingOverlay').classList.remove('active');
+      });
+    }
+
+    function geocodeAddress(address) {
+      return new Promise(function(resolve, reject) {
+        var geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ 'address': address }, function(results, status) {
+          if (status === 'OK') {
+            resolve({
+              location: results[0].geometry.location,
+              address: results[0].formatted_address
+            });
+          } else {
+            console.error('Geocode was not successful for the following reason: ' + status);
+            reject(status);
+          }
+        });
+      });
+    }
+
+    function calculateBounds(locations) {
+      var bounds = new google.maps.LatLngBounds();
+      locations.forEach(function(location) {
+        bounds.extend(location);
+      });
+      return bounds;
+    }
+
+    function generateGridPoints(bounds, gridSize) {
+      var gridPoints = [];
+      var ne = bounds.getNorthEast();
+      var sw = bounds.getSouthWest();
+
+      var latStep = (ne.lat() - sw.lat()) / gridSize;
+      var lngStep = (ne.lng() - sw.lng()) / gridSize;
+
+      for (var i = 0; i <= gridSize; i++) {
+        for (var j = 0; j <= gridSize; j++) {
+          var lat = sw.lat() + latStep * i;
+          var lng = sw.lng() + lngStep * j;
+          gridPoints.push(new google.maps.LatLng(lat, lng));
+        }
+      }
+      return gridPoints;
+    }
+
+    function calculateOptimalMeetingPoint(locations, travelMode) {
+      return new Promise(function(resolve, reject) {
+        var bounds = calculateBounds(locations);
+        
+        // Generate a larger grid (7x7 instead of 5x5) for more precision
+        var gridPoints = generateGridPoints(bounds, 7);
+
+        // Calculate scores for each point based on travel time balance
+        var candidatePromises = gridPoints.map(function(point) {
+          return calculateTotalTravelTime(point, locations, travelMode).then(function(totalTime) {
+            // Get individual times for each location
+            return calculateIndividualTravelTimes(point, locations, travelMode).then(function(times) {
+              // Calculate time difference between locations
+              var maxTime = Math.max(...times);
+              var minTime = Math.min(...times);
+              var timeDifference = maxTime - minTime;
+              
+              // Score based on both total time and time difference
+              // Lower score is better
+              var score = totalTime + (timeDifference * 2); // Heavily penalize uneven times
+              
+              return {
+                point: point,
+                score: score,
+                totalTime: totalTime,
+                timeDifference: timeDifference
+              };
+            });
+          });
+        });
+
+        Promise.all(candidatePromises).then(function(candidates) {
+          // Filter out points with infinite travel time
+          candidates = candidates.filter(function(candidate) {
+            return candidate.totalTime !== Infinity;
+          });
+
+          // Sort by score (lower is better)
+          candidates.sort(function(a, b) {
+            return a.score - b.score;
+          });
+
+          if (candidates.length > 0) {
+            var optimalPoint = candidates[0].point;
+            resolve(optimalPoint);
+          } else {
+            alert('Unable to find a suitable meeting point.');
+            reject('No valid candidates');
+          }
+        }).catch(function(error) {
+          console.error('Error calculating optimal meeting point:', error);
+          reject(error);
+        });
+      });
+    }
+
+    function calculateTotalTravelTime(destination, origins, travelMode) {
+      return new Promise(function(resolve, reject) {
+        var service = new google.maps.DistanceMatrixService();
+        service.getDistanceMatrix({
+          origins: origins,
+          destinations: [destination],
+          travelMode: travelMode,
+          unitSystem: google.maps.UnitSystem.IMPERIAL,
+          transitOptions: {
+            modes: ['SUBWAY', 'TRAIN', 'BUS']
+          }
+        }, function(response, status) {
+          if (status === 'OK') {
+            var totalTime = 0;
+            response.rows.forEach(function(row) {
+              if (row.elements[0].status === 'OK') {
+                totalTime += row.elements[0].duration.value;
+              } else {
+                totalTime += Infinity; // Assign a high value if unable to calculate
+              }
+            });
+            resolve(totalTime);
+          } else {
+            console.error('Distance Matrix request failed due to ' + status);
+            resolve(Infinity);
+          }
+        });
+      });
+    }
+
+    function adjustPointToLand(point) {
+      return new Promise(function(resolve, reject) {
+        var geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ 'location': point }, function(results, status) {
+          if (status === 'OK' && results[0]) {
+            resolve(results[0].geometry.location);
+          } else {
+            console.error('Adjusting point to land failed: ' + status);
+            resolve(point); // Use original point if adjustment fails
+          }
+        });
+      });
+    }
+
+    function findNearbyPlaces(center, placeType, locations, travelMode) {
+      console.log("findNearbyPlaces called", center, placeType);
+      var service = new google.maps.places.PlacesService(map);
+      
+      // We need to use either radius OR rankBy, but not both
+      var request = {
+        location: center,
+        type: placeType  // No brackets around placeType
+      };
+      
+      // Choose between radius and rankBy
+      if (searchRadius > 0) {
+        request.radius = searchRadius;
+      } else {
+        request.rankBy = google.maps.places.RankBy.DISTANCE;
+      }
+
+      console.log("Places search request:", request);
+      
+      service.nearbySearch(request, function(results, status, pagination) {
+        console.log("Places API response status:", status);
+        console.log("Places found:", results ? results.length : 0);
+        
+        if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+          console.log("First place:", results[0].name);
+          
+          // Limit the number of results to process
+          var MAX_CANDIDATES = 20;
+          results = results.slice(0, MAX_CANDIDATES);
+          
+          // Process places with balanced scoring
+          processPlaces(results, locations, travelMode);
+        } else {
+          console.error('Places search failed or returned no results:', status);
+          
+          // Remove loading overlay
+          document.getElementById('loadingOverlay').classList.remove('active');
+          
+          // Show a message to the user
+          var placesList = document.getElementById('placesList');
+          placesList.innerHTML = '<div class="place-item">No places found matching your criteria. Try a different place type or increase the search radius.</div>';
+          
+          // Still show the results panel
+          document.getElementById('resultsPanel').classList.add('active');
+        }
+      });
+    }
+    
+    setTimeout(function() {
+      if (document.getElementById('loadingOverlay').classList.contains('active')) {
+        console.log('Safety timeout: Removing loading overlay');
+        document.getElementById('loadingOverlay').classList.remove('active');
+        
+        // Check if results panel is empty and show a message
+        var placesList = document.getElementById('placesList');
+        if (!placesList.innerHTML.trim()) {
+          placesList.innerHTML = '<div class="place-item">Process took too long or encountered an error. Please try again.</div>';
+          document.getElementById('resultsPanel').classList.add('active');
+        }
+      }
+    }, 30000);
+
+    function processPlaces(places, locations, travelMode) {
+      console.log("processPlaces called with", places ? places.length : 0, "places");
+      
+      if (!places || places.length === 0) {
+        console.log('No places to process');
+        document.getElementById('loadingOverlay').classList.remove('active');
+        
+        // Show the results panel with a message
+        var placesList = document.getElementById('placesList');
+        placesList.innerHTML = '<div class="place-item">No places found matching your criteria.</div>';
+        document.getElementById('resultsPanel').classList.add('active');
+        return;
+      }
+      
+      var placePromises = places.map(function(place) {
+        // Add a check for valid place with geometry
+        if (!place || !place.geometry || !place.geometry.location) {
+          console.log('Invalid place object:', place);
+          return Promise.resolve(null);
+        }
+        
+        return calculateIndividualTravelTimes(place.geometry.location, locations, travelMode)
+          .then(function(individualTimes) {
+            if (!individualTimes) {
+              return null;
+            }
+            
+            var totalTime = individualTimes.reduce(function(acc, val) {
+              return acc + val;
+            }, 0);
+            
+            // Calculate time difference between fastest and slowest route
+            var maxTime = Math.max(...individualTimes);
+            var minTime = Math.min(...individualTimes);
+            var timeDifference = maxTime - minTime;
+            
+            // Calculate a balanced score
+            var score = totalTime + (timeDifference * 2) - ((place.rating || 0) * 300);
+            
+            return {
+              place: place,
+              totalTime: totalTime,
+              individualTimes: individualTimes,
+              timeDifference: timeDifference,
+              score: score
+            };
+          })
+          .catch(function(error) {
+            console.error('Error calculating travel times for place:', error);
+            return null; // Return null for failed calculations
+          });
+      });
+
+      Promise.all(placePromises)
+        .then(function(placeResults) {
+          // Filter out any null results from failures
+          placeResults = placeResults.filter(result => result !== null);
+          
+          if (placeResults.length === 0) {
+            console.log('No valid place results');
+            document.getElementById('loadingOverlay').classList.remove('active');
+            
+            // Show a message
+            var placesList = document.getElementById('placesList');
+            placesList.innerHTML = '<div class="place-item">Could not calculate travel times for any places. Please try again.</div>';
+            document.getElementById('resultsPanel').classList.add('active');
+            return;
+          }
+          
+          // Sort by balanced score before adding to placesData
+          placeResults.sort((a, b) => a.score - b.score);
+          placesData = placeResults;
+          sortAndDisplayPlaces();
+        })
+        .catch(function(error) {
+          console.error('Error calculating travel times:', error);
+          document.getElementById('loadingOverlay').classList.remove('active');
+          
+          // Show an error message
+          var placesList = document.getElementById('placesList');
+          placesList.innerHTML = '<div class="place-item">An error occurred while calculating travel times. Please try again.</div>';
+          document.getElementById('resultsPanel').classList.add('active');
+        });
+    }
+
+    function calculateIndividualTravelTimes(destination, origins, travelMode) {
+      return new Promise(function(resolve, reject) {
+        var service = new google.maps.DistanceMatrixService();
+        service.getDistanceMatrix({
+          origins: origins,
+          destinations: [destination],
+          travelMode: travelMode,
+          unitSystem: google.maps.UnitSystem.IMPERIAL,
+          transitOptions: {
+            modes: ['SUBWAY', 'TRAIN', 'BUS']
+          }
+        }, function(response, status) {
+          if (status === 'OK') {
+            var times = [];
+            response.rows.forEach(function(row) {
+              if (row.elements[0].status === 'OK') {
+                times.push(row.elements[0].duration.value);
+              } else {
+                times.push(Infinity); // Assign a very high value if unable to calculate
+              }
+            });
+            resolve(times);
+          } else {
+            console.error('Distance Matrix request failed due to ' + status);
+            resolve(origins.map(() => Infinity));
+          }
+        });
+      });
+    }
+
+    function sortAndDisplayPlaces() {
+      console.log("sortAndDisplayPlaces called with", placesData ? placesData.length : 0, "places");
+      
+      if (!placesData || placesData.length === 0) {
+        var placesList = document.getElementById('placesList');
+        placesList.innerHTML = '<div class="place-item">No places found matching your criteria.</div>';
+        document.getElementById('resultsPanel').classList.add('active');
+        document.getElementById('loadingOverlay').classList.remove('active');
+        return;
+      }
+      
+      // Filter out any undefined or invalid entries
+      placesData = placesData.filter(function(item) {
+        return item && item.place;
+      });
+      
+      var sortOption = document.getElementById('sortOption').value;
+
+      if (sortOption === 'totalTime') {
+        placesData.sort(function(a, b) {
+          return a.totalTime - b.totalTime;
+        });
+      } else if (sortOption === 'rating') {
+        placesData.sort(function(a, b) {
+          return (b.place.rating || 0) - (a.place.rating || 0);
+        });
+      } else if (sortOption === 'price') {
+        placesData.sort(function(a, b) {
+          return (a.place.price_level || 0) - (b.place.price_level || 0);
+        });
+      } else if (sortOption === 'distance') {
+        var center = map.getCenter();
+        placesData.sort(function(a, b) {
+          var distanceA = google.maps.geometry.spherical.computeDistanceBetween(a.place.geometry.location, center);
+          var distanceB = google.maps.geometry.spherical.computeDistanceBetween(b.place.geometry.location, center);
+          return distanceA - distanceB;
+        });
+      }
+
+      displayPlaces();
+    }
+
+    function displayPlaces() {
+      var placesList = document.getElementById('placesList');
+      placesList.innerHTML = '';
+
+      // Clear existing place markers
+      markers = markers.filter(function(marker) {
+        if (marker.title && marker.title.startsWith('Address')) {
+          return true;
+        } else if (marker.title === 'Optimal Meeting Point') {
+          return true;
+        } else {
+          marker.setMap(null);
+          return false;
+        }
+      });
+
+      if (!placesData || placesData.length === 0) {
+        placesList.innerHTML = '<div class="place-item">No places found matching your criteria.</div>';
+        document.getElementById('resultsPanel').classList.add('active');
+        document.getElementById('loadingOverlay').classList.remove('active');
+        return;
+      }
+
+      placesData.forEach(function(result, index) {
+        var place = result.place;
+
+        // Add marker for the place
+        var marker = new google.maps.Marker({
+          position: place.geometry.location,
+          map: map,
+          title: place.name,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: index === 0 ? "#FFC107" : "#757575",
+            fillOpacity: 0.8,
+            strokeWeight: 1,
+            strokeColor: "#FFFFFF"
+          },
+          zIndex: 1000 - index // Higher index places appear above others
+        });
+        markers.push(marker);
+
+        var priceLevel = formatPriceLevel(place.price_level);
+        var ratingStars = formatRatingStars(place.rating);
+
+        var individualTimesHTML = result.individualTimes.map(function(time, idx) {
+          var timeInMins = Math.round(time / 60);
+          return `<div class="place-item-travel-individual">
+            Address ${idx + 1}: ${timeInMins === Infinity ? 'N/A' : timeInMins + ' mins'}
+          </div>`;
+        }).join('');
+
+        var listItem = document.createElement('div');
+        listItem.className = 'place-item';
+        if (index === 0) {
+          listItem.classList.add('place-item-best');
+        }
+        
+        listItem.innerHTML = `
+          <div class="place-item-header">
+            <div>
+              <div class="place-item-name">${place.name}</div>
+              <div class="place-item-address">${place.vicinity}</div>
+            </div>
+            ${index === 0 ? '<span class="place-item-badge">Best Match</span>' : ''}
+          </div>
+          <div class="place-item-rating">${ratingStars} ${place.rating ? place.rating.toFixed(1) : 'N/A'}</div>
+          <div class="place-item-price">${priceLevel}</div>
+          <div class="place-item-travel">
+            <div class="place-item-travel-total">
+              <i class="fas fa-clock"></i> Total Travel: ${Math.round(result.totalTime / 60)} mins
+            </div>
+            ${individualTimesHTML}
+          </div>
+          <div class="place-item-actions">
+            <button class="btn btn-sm btn-secondary" onclick="openGoogleMaps('${encodeURIComponent(userAddresses[0])}', '${encodeURIComponent(place.vicinity)}')">
+              <i class="fas fa-directions"></i> Directions
+            </button>
+          </div>
+        `;
+
+        listItem.addEventListener('click', function(e) {
+          // Don't trigger if clicking the directions button
+          if (e.target.closest('.btn')) return;
+          
+          map.setCenter(place.geometry.location);
+          map.setZoom(16);
+          
+          // Clear previous routes
+          directionsRenderers.forEach(function(renderer) {
+            renderer.setMap(null);
+          });
+          directionsRenderers = [];
+
+          var travelMode = document.getElementById('mode').value;
+
+          // Calculate route for your location (Address 1) to the selected place in dark blue
+          calculateRoute(userLocations[0], place.geometry.location, travelMode, true);
+
+          // Calculate routes for other locations to the selected place
+          for (var i = 1; i < userLocations.length; i++) {
+            calculateRoute(userLocations[i], place.geometry.location, travelMode, false);
+          }
+        });
+
+        placesList.appendChild(listItem);
+      });
+
+      // Show the results panel
+      document.getElementById('resultsPanel').classList.add('active');
+      document.getElementById('loadingOverlay').classList.remove('active');
+    }
+
+    function formatPriceLevel(priceLevel) {
+      if (priceLevel === undefined || priceLevel === null) {
+        return 'Price: N/A';
+      }
+      var dollarSigns = '';
+      for (var i = 0; i < priceLevel; i++) {
+        dollarSigns += '$';
+      }
+      return 'Price: ' + dollarSigns;
+    }
+
+    function formatRatingStars(rating) {
+      if (!rating) return '';
+      
+      var starsHTML = '';
+      var fullStars = Math.floor(rating);
+      var halfStar = rating % 1 >= 0.5;
+      
+      // Add full stars
+      for (var i = 0; i < fullStars; i++) {
+        starsHTML += '<i class="fas fa-star"></i>';
+      }
+      
+      // Add half star if needed
+      if (halfStar) {
+        starsHTML += '<i class="fas fa-star-half-alt"></i>';
+      }
+      
+      // Add empty stars
+      var emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+      for (var j = 0; j < emptyStars; j++) {
+        starsHTML += '<i class="far fa-star"></i>';
+      }
+      
+      return starsHTML;
+    }
+
+    function calculateRoute(origin, destination, travelMode, isPrimary) {
+      var renderer = new google.maps.DirectionsRenderer({
+        suppressMarkers: true,
+        polylineOptions: {
+          strokeColor: isPrimary ? '#3a86ff' : '#90caf9', // Primary blue for main route, light blue for others
+          strokeOpacity: isPrimary ? 1.0 : 0.7,
+          strokeWeight: isPrimary ? 5 : 3
+        }
+      });
+      renderer.setMap(map);
+      directionsRenderers.push(renderer);
+
+      directionsService.route({
+        origin: origin,
+        destination: destination,
+        travelMode: travelMode,
+        transitOptions: {
+          modes: ['SUBWAY', 'TRAIN', 'BUS']
+        }
+      }, function(response, status) {
+        if (status === 'OK') {
+          renderer.setDirections(response);
+          
+          // If this is transit mode and it's the primary route, show detailed directions
+          if (travelMode === 'TRANSIT' && isPrimary) {
+            showDetailedTransitDirections(response);
+          }
+        } else {
+          console.error('Directions request failed due to ' + status);
+        }
+      });
+    }
+    
+    function showDetailedTransitDirections(response) {
+      var directionsPanel = document.getElementById('directionsPanel');
+      var directionsContent = document.getElementById('directionsContent');
+      directionsContent.innerHTML = '';
+      
+      var route = response.routes[0];
+      var legs = route.legs[0]; // We're dealing with a single origin-destination pair
+      
+      // Show route summary
+      var summaryDiv = document.createElement('div');
+      summaryDiv.className = 'direction-summary';
+      summaryDiv.innerHTML = `
+        <h4>Journey Summary</h4>
+        <div class="direction-time">Total Time: ${legs.duration.text}</div>
+        <div class="direction-distance">Distance: ${legs.distance.text}</div>
+      `;
+      directionsContent.appendChild(summaryDiv);
+      
+      // Add a divider
+      var divider = document.createElement('hr');
+      divider.style.margin = '1rem 0';
+      divider.style.borderColor = 'var(--card-border)';
+      directionsContent.appendChild(divider);
+      
+      // Process each step
+      legs.steps.forEach(function(step, index) {
+        var stepDiv = document.createElement('div');
+        stepDiv.className = 'direction-step';
+        
+        // Determine icon and details based on travel mode
+        var iconHTML = '';
+        var detailsHTML = '';
+        
+        if (step.travel_mode === 'WALKING') {
+          iconHTML = '<i class="fas fa-walking"></i>';
+          detailsHTML = `
+            <div class="direction-main">Walk ${step.distance.text}</div>
+            <div class="direction-time">${step.duration.text}</div>
+            <div class="direction-distance">${step.instructions}</div>
+          `;
+        } else if (step.travel_mode === 'TRANSIT') {
+          var transit = step.transit;
+          var line = transit.line;
+          var vehicle = line.vehicle;
+          var vehicleType = vehicle.type.toLowerCase();
+          var iconClass = '';
+          
+          // Determine icon based on vehicle type
+          if (vehicleType === 'subway' || vehicleType === 'metro_rail') {
+            iconClass = 'fa-subway';
+          } else if (vehicleType === 'bus') {
+            iconClass = 'fa-bus';
+          } else if (vehicleType === 'train' || vehicleType === 'commuter_train') {
+            iconClass = 'fa-train';
+          } else if (vehicleType === 'tram') {
+            iconClass = 'fa-tram';
+          } else {
+            iconClass = 'fa-bus';
+          }
+          
+          iconHTML = `<i class="fas ${iconClass}"></i>`;
+          
+          // Create transit line badge with color
+          var lineColor = line.color || '#3a86ff';
+          var textColor = line.text_color || 'white';
+          var lineName = line.short_name || line.name || 'Line';
+          
+          var transitLine = `
+            <div class="transit-line" style="background-color: ${lineColor}; color: ${textColor};">
+              ${lineName}
+            </div>
+          `;
+          
+          var departureTime = new Date(transit.departure_time.value);
+          var arrivalTime = new Date(transit.arrival_time.value);
+          
+          var departureTimeFormatted = departureTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+          var arrivalTimeFormatted = arrivalTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+          
+          detailsHTML = `
+            <div class="direction-main">${transitLine} ${transit.headsign}</div>
+            <div class="direction-time">${step.duration.text}</div>
+            <div class="transit-details">
+              <div>Depart: ${departureTimeFormatted} from ${transit.departure_stop.name}</div>
+              <div>Arrive: ${arrivalTimeFormatted} at ${transit.arrival_stop.name}</div>
+              <div>${transit.num_stops} stops</div>
+            </div>
+          `;
+        } else if (step.travel_mode === 'DRIVING') {
+          iconHTML = '<i class="fas fa-car"></i>';
+          detailsHTML = `
+            <div class="direction-main">Drive ${step.distance.text}</div>
+            <div class="direction-time">${step.duration.text}</div>
+            <div class="direction-distance">${step.instructions}</div>
+          `;
+        } else if (step.travel_mode === 'BICYCLING') {
+          iconHTML = '<i class="fas fa-bicycle"></i>';
+          detailsHTML = `
+            <div class="direction-main">Cycle ${step.distance.text}</div>
+            <div class="direction-time">${step.duration.text}</div>
+            <div class="direction-distance">${step.instructions}</div>
+          `;
+        }
+        
+        stepDiv.innerHTML = `
+          <div class="direction-icon">${iconHTML}</div>
+          <div class="direction-details">${detailsHTML}</div>
+        `;
+        
+        directionsContent.appendChild(stepDiv);
+      });
+      
+      // Show the directions panel
+      directionsPanel.classList.add('active');
+    }
+
+    function clearMap() {
+      // Clear markers
+      markers.forEach(function(marker) {
+        marker.setMap(null);
+      });
+      markers = [];
+
+      // Clear routes
+      directionsRenderers.forEach(function(renderer) {
+        renderer.setMap(null);
+      });
+      directionsRenderers = [];
+
+      // Clear midpoint marker
+      if (midpointMarker) {
+        midpointMarker.setMap(null);
+        midpointMarker = null;
+      }
+    }
+
+    function toggleTheme() {
+      darkMode = !darkMode;
+      
+      if (darkMode) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.querySelector('.theme-toggle-thumb').innerHTML = '<i class="fas fa-moon"></i>';
+        
+        // Update map style for dark mode
+        if (map) {
+          map.setOptions({
+            styles: [
+              { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+              { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+              { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+              {
+                featureType: "administrative.locality",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#d59563" }],
+              },
+              {
+                featureType: "poi",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#d59563" }],
+              },
+              {
+                featureType: "poi.park",
+                elementType: "geometry",
+                stylers: [{ color: "#263c3f" }],
+              },
+              {
+                featureType: "poi.park",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#6b9a76" }],
+              },
+              {
+                featureType: "road",
+                elementType: "geometry",
+                stylers: [{ color: "#38414e" }],
+              },
+              {
+                featureType: "road",
+                elementType: "geometry.stroke",
+                stylers: [{ color: "#212a37" }],
+              },
+              {
+                featureType: "road",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#9ca5b3" }],
+              },
+              {
+                featureType: "road.highway",
+                elementType: "geometry",
+                stylers: [{ color: "#746855" }],
+              },
+              {
+                featureType: "road.highway",
+                elementType: "geometry.stroke",
+                stylers: [{ color: "#1f2835" }],
+              },
+              {
+                featureType: "road.highway",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#f3d19c" }],
+              },
+              {
+                featureType: "transit",
+                elementType: "geometry",
+                stylers: [{ color: "#2f3948" }],
+              },
+              {
+                featureType: "transit.station",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#d59563" }],
+              },
+              {
+                featureType: "water",
+                elementType: "geometry",
+                stylers: [{ color: "#17263c" }],
+              },
+              {
+                featureType: "water",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#515c6d" }],
+              },
+              {
+                featureType: "water",
+                elementType: "labels.text.stroke",
+                stylers: [{ color: "#17263c" }],
+              },
+            ]
+          });
+        }
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        document.querySelector('.theme-toggle-thumb').innerHTML = '<i class="fas fa-sun"></i>';
+        
+        // Reset map style for light mode
+        if (map) {
+          map.setOptions({
+            styles: []
+          });
+        }
+      }
+      
+      // Save preference to localStorage
+      localStorage.setItem('darkMode', darkMode);
+    }
+    
+    function initTheme() {
+      // Check for saved preference
+      var savedDarkMode = localStorage.getItem('darkMode');
+      
+      if (savedDarkMode === 'true') {
+        darkMode = true;
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.querySelector('.theme-toggle-thumb').innerHTML = '<i class="fas fa-moon"></i>';
+        
+        // Update map style for dark mode if map is initialized
+        if (map) {
+          map.setOptions({
+            styles: [
+              { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+              { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+              { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+              {
+                featureType: "administrative.locality",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#d59563" }],
+              },
+              {
+                featureType: "poi",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#d59563" }],
+              },
+              {
+                featureType: "poi.park",
+                elementType: "geometry",
+                stylers: [{ color: "#263c3f" }],
+              },
+              {
+                featureType: "poi.park",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#6b9a76" }],
+              },
+              {
+                featureType: "road",
+                elementType: "geometry",
+                stylers: [{ color: "#38414e" }],
+              },
+              {
+                featureType: "road",
+                elementType: "geometry.stroke",
+                stylers: [{ color: "#212a37" }],
+              },
+              {
+                featureType: "road",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#9ca5b3" }],
+              },
+              {
+                featureType: "road.highway",
+                elementType: "geometry",
+                stylers: [{ color: "#746855" }],
+              },
+              {
+                featureType: "road.highway",
+                elementType: "geometry.stroke",
+                stylers: [{ color: "#1f2835" }],
+              },
+              {
+                featureType: "road.highway",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#f3d19c" }],
+              },
+              {
+                featureType: "transit",
+                elementType: "geometry",
+                stylers: [{ color: "#2f3948" }],
+              },
+              {
+                featureType: "transit.station",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#d59563" }],
+              },
+              {
+                featureType: "water",
+                elementType: "geometry",
+                stylers: [{ color: "#17263c" }],
+              },
+              {
+                featureType: "water",
+                elementType: "labels.text.fill",
+                stylers: [{ color: "#515c6d" }],
+              },
+              {
+                featureType: "water",
+                elementType: "labels.text.stroke",
+                stylers: [{ color: "#17263c" }],
+              },
+            ]
+          });
+        }
+      }
+    }
+    
+    function getCurrentLocation(addressInputId) {
+      // Check if browser supports geolocation
+      if (!navigator.geolocation) {
+        alert("Your browser doesn't support geolocation.");
+        return;
+      }
+      
+      // Show loading overlay
+      document.getElementById('loadingOverlay').classList.add('active');
+      
+      // Get the address input element
+      var addressInput = document.getElementById(addressInputId);
+      
+      // Change button icon to spinning
+      var buttonId = 'useLocationBtn' + addressInputId.replace('address', '');
+      var button = document.getElementById(buttonId);
+      if (button) {
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+      }
+      
+      // Get current position
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          // Success callback
+          var lat = position.coords.latitude;
+          var lng = position.coords.longitude;
+          
+          // Reverse geocode the coordinates
+          var geocoder = new google.maps.Geocoder();
+          var latlng = new google.maps.LatLng(lat, lng);
+          
+          geocoder.geocode({ 'location': latlng }, function(results, status) {
+            // Reset button
+            if (button) {
+              button.innerHTML = '<i class="fas fa-location-arrow"></i>';
+              button.disabled = false;
+            }
+            
+            if (status === 'OK' && results[0]) {
+              // Set the address input value
+              addressInput.value = results[0].formatted_address;
+              
+              // Remove loading overlay
+              document.getElementById('loadingOverlay').classList.remove('active');
+            } else {
+              console.error('Geocoder failed due to: ' + status);
+              alert('Unable to determine your address. Please enter it manually.');
+              
+              // Remove loading overlay
+              document.getElementById('loadingOverlay').classList.remove('active');
+            }
+          });
+        },
+        function(error) {
+          // Error callback
+          // Reset button
+          if (button) {
+            button.innerHTML = '<i class="fas fa-location-arrow"></i>';
+            button.disabled = false;
+          }
+          
+          // Remove loading overlay
+          document.getElementById('loadingOverlay').classList.remove('active');
+          
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              alert("You denied the request for geolocation.");
+              break;
+            case error.POSITION_UNAVAILABLE:
+              alert("Location information is unavailable.");
+              break;
+            case error.TIMEOUT:
+              alert("The request to get user location timed out.");
+              break;
+            case error.UNKNOWN_ERROR:
+              alert("An unknown error occurred.");
+              break;
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    }
+
+    function openGoogleMaps(origin, destination) {
+      var url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=${document.getElementById('mode').value.toLowerCase()}`;
+      window.open(url, '_blank');
+    }
+  </script>
+</body>
+</html>
